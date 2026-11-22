@@ -1,0 +1,6 @@
+# Notebook, plots and load testing
+-r requirements.txt
+jupyter
+matplotlib==3.11.2
+seaborn==0.13.2
+locust==2.47.0

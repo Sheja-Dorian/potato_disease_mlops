@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeafCheck: Potato Disease Classifier</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Cpath d=%22M6 26C6 13 15 5 27 5c0 12-8 21-21 21z%22 fill=%22%233a8f4b%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 32 32" width="30" height="30" aria-hidden="true"><path d="M6 26C6 13 15 5 27 5c0 12-8 21-21 21z" fill="#8fc79a"/><path d="M6 26C12 19 17 14 23 9" stroke="#1f4d2b" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    <div><h1>LeafCheck</h1><p>Potato leaf disease classifier: healthy · early blight · late blight</p></div>
+  </div>
+  <div id="status-pill" class="pill"><span class="dot"></span><span id="status-text">connecting…</span></div>
+</header>
+
+<nav>
+  <button class="tab active" data-tab="dashboard">Dashboard</button>
+  <button class="tab" data-tab="predict">Predict</button>
+  <button class="tab" data-tab="insights">Data insights</button>
+  <button class="tab" data-tab="retrain">Upload &amp; retrain</button>
+</nav>
+
+<main>
+<!-- ============ DASHBOARD ============ -->
+<section id="dashboard" class="panel active">
+  <div class="kpis">
+    <div class="kpi"><label>Uptime</label><b id="k-uptime">–</b><small id="k-started"></small></div>
+    <div class="kpi"><label>Model version</label><b id="k-version">–</b><small id="k-saved"></small></div>
+    <div class="kpi"><label>Test accuracy</label><b id="k-acc">–</b><small id="k-f1"></small></div>
+    <div class="kpi"><label>Predictions served</label><b id="k-preds">–</b><small id="k-lat"></small></div>
+  </div>
+  <div class="grid2">
+    <div class="card">
+      <h2>Model metrics on held-out test set</h2>
+      <table id="metrics-table" class="metrics"></table>
+    </div>
+    <div class="card">
+      <h2>Version history</h2>
+      <canvas id="history-chart" height="190"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <div class="row-between"><h2>Evaluate the model in production</h2>
+      <div class="row"><input type="file" id="eval-zip" accept=".zip" title="optional labelled zip"><button id="eval-btn" class="btn">Run evaluation</button></div></div>
+    <p class="muted">Runs the model that is serving right now on the bundled held-out test set, or on a labelled zip you choose (folders named <code>early_blight</code>, <code>healthy</code>, <code>late_blight</code>).</p>
+    <div id="eval-out"></div>
+  </div>
+  <div class="card">
+    <h2>Live traffic</h2>
+    <div id="mon-out" class="muted">No predictions yet.</div>
+  </div>
+</section>
+
+<!-- ============ PREDICT ============ -->
+<section id="predict" class="panel">
+  <div class="grid2">
+    <div class="card">
+      <h2>Upload one leaf photo</h2>
+      <label id="drop" class="drop">
+        <input type="file" id="pred-file" accept="image/*" hidden>
+        <img id="pred-preview" alt="" hidden>
+        <span id="drop-hint">Drop an image here or <u>browse</u></span>
+      </label>
+      <button id="pred-btn" class="btn wide" disabled>Predict</button>
+    </div>
+    <div class="card">
+      <h2>Result</h2>
+      <div id="pred-out" class="muted">The prediction will appear here.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSIGHTS ============ -->
+<section id="insights" class="panel">
+  <p class="lead">Four interpretable features were computed on the leaf pixels of every training image. Together they explain what the CNN has to learn.</p>
+  <div class="grid2">
+    <div class="card"><h2>1 · Class distribution</h2><canvas id="c-counts" height="210"></canvas><p class="interp" id="i-class_counts"></p></div>
+    <div class="card"><h2>2 · Green ratio G/(R+G+B)</h2><canvas id="c-green_ratio" height="210"></canvas><p class="interp" id="i-green_ratio"></p></div>
+    <div class="card"><h2>3 · Lesion fraction (yellow/brown tissue)</h2><canvas id="c-lesion_fraction" height="210"></canvas><p class="interp" id="i-lesion_fraction"></p></div>
+    <div class="card"><h2>4 · Texture (edge strength)</h2><canvas id="c-texture" height="210"></canvas><p class="interp" id="i-texture"></p></div>
+  </div>
+  <div class="card story"><h2>The story</h2>
+    <p>Colour features (green ratio, lesion fraction) split <b>healthy</b> from <b>diseased</b> leaves. Only <b>texture</b> separates the two blights: early blight's ringed "target" spots against late blight's smooth, dark patches. No single feature separates all three classes, which is why a CNN that learns colour and local texture together works well. The class imbalance means the model is judged on macro-F1, not accuracy alone.</p></div>
+</section>
+
+<!-- ============ RETRAIN ============ -->
+<section id="retrain" class="panel">
+  <div class="grid2">
+    <div class="card">
+      <h2>1 · Upload new labelled data</h2>
+      <p class="muted">Bulk-upload many images or a <b>.zip</b>. In a zip, the folder names give the labels (<code>early_blight/</code>, <code>healthy/</code>, <code>late_blight/</code>). Loose images use the class you pick below. Images are validated with the training preprocessing and saved to the database.</p>
+      <input type="file" id="up-files" multiple accept="image/*,.zip">
+      <div class="row"><select id="up-label">
+        <option value="">Label for loose images…</option>
+        <option value="early_blight">Early Blight</option><option value="healthy">Healthy</option><option value="late_blight">Late Blight</option>
+      </select><button id="up-btn" class="btn">Upload</button></div>
+      <div id="up-out"></div>
+    </div>
+    <div class="card">
+      <h2>2 · Trigger retraining</h2>
+      <div id="pending" class="pending"></div>
+      <p class="muted">Fine-tunes the current production model on the new data plus a replay sample of the original data, then compares it with the current model on the test set. The new model is promoted only if it is not worse. Retraining also starts automatically when pending uploads reach the threshold.</p>
+      <button id="rt-btn" class="btn wide amber">Retrain model</button>
+      <pre id="rt-log" class="log" hidden></pre>
+    </div>
+  </div>
+  <div class="card"><h2>Retraining runs</h2><table id="runs" class="runs"></table></div>
+</section>
+</main>
+<footer>Data: PlantVillage (CC BY-SA 3.0) · API docs at <a href="/docs">/docs</a></footer>
+<script src="/static/app.js"></script>
+</body>
+</html>

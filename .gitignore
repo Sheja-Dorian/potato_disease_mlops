@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+data/*.db
+data/*.db-*
+models/archive/
+models/*.tmp*
+locust/results/*.html
+.venv/

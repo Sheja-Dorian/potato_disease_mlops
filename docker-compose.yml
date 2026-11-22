@@ -1,0 +1,25 @@
+# Scale the API horizontally behind an nginx load balancer:
+#   docker compose up --build --scale api=1      (then 2, 4 ...)
+# Load-test through http://localhost:8080
+services:
+  api:
+    build: .
+    environment:
+      - WEB_CONCURRENCY=1
+      - DB_PATH=/app/data/shared/app.db
+      - AUTO_RETRAIN=true
+    volumes:
+      - shared-data:/app/data/shared
+      - shared-models:/app/models
+    expose: ["8000"]
+    deploy:
+      resources:
+        limits: {cpus: "1.0", memory: 1g}
+  lb:
+    image: nginx:1.27-alpine
+    volumes: ["./nginx.conf:/etc/nginx/nginx.conf:ro"]
+    ports: ["8080:80"]
+    depends_on: [api]
+volumes:
+  shared-data:
+  shared-models:

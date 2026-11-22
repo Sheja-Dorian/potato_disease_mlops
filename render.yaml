@@ -1,0 +1,27 @@
+# Render Blueprint: New > Blueprint > connect this GitHub repo
+services:
+  - type: web
+    name: potato-leaf-classifier
+    runtime: docker
+    # TensorFlow needs ~0.7 GB RAM to serve and ~1.3 GB peak while retraining (measured),
+    # so the 512 MB free/starter instances run out of memory. Standard = 2 GB RAM, 1 CPU.
+    # Billing is prorated, so suspend the service after grading to stop charges.
+    plan: standard        # new-style plan ID: 1c-2g
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: RETRAIN_THRESHOLD
+        value: "100"
+      - key: AUTO_RETRAIN
+        value: "true"
+      - key: REPLAY_PER_CLASS
+        value: "120"
+    # Optional (paid plans): keep uploads, retraining history and retrained models across restarts.
+    # On first boot the bundled v1 model is copied onto the empty disk automatically.
+    # disk:
+    #   name: state
+    #   mountPath: /app/state
+    #   sizeGB: 1
+    # and add env vars:  DB_PATH=/app/state/app.db   MODELS_DIR=/app/state/models

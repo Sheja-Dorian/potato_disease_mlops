@@ -1,0 +1,10 @@
+.git
+**/__pycache__
+notebook/
+docs/
+locust/
+data/incoming/
+data/*.db*
+models/archive/
+demo/
+*.ipynb
