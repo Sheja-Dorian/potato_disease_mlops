@@ -13,6 +13,8 @@ COPY models/ models/
 COPY data/train/ data/train/
 COPY data/test/ data/test/
 
+RUN chmod -R a+rwX /app
+ENV HOME=/tmp
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s CMD python -c "import urllib.request,os;urllib.request.urlopen(f'http://localhost:{os.environ.get(\"PORT\",8000)}/health')"
 # Render injects $PORT; WEB_CONCURRENCY = uvicorn worker processes inside one container
