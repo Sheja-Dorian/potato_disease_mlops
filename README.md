@@ -2,15 +2,20 @@
 
 An image classifier that tells from one photo of a potato leaf whether the plant is **Healthy**, has
 **Early Blight** or has **Late Blight**. It is served through a FastAPI service with a web UI that shows model
-up-time, data insights, single-image prediction, bulk data upload and one-click retraining. The service is
-deployed on Render with Docker and load-tested with Locust.
+up-time, data insights, single-image prediction, bulk data upload and one-click retraining. The service runs in
+Docker containers on a cloud machine (GitHub Codespaces) and is load-tested with Locust.
 
 | | |
 |---|---|
 | 🎥 **Video demo** | **[YouTube link](https://youtu.be/REPLACE_ME)** |
-| 🌐 **Live app** | **https://REPLACE-ME.onrender.com** (API docs: `/docs`) |
+| 🌐 **Live app** | **https://congenial-eureka-r466j6jr74g9cx5qv-8000.app.github.dev** (API docs: `/docs`). See the note below |
 | 📓 **Notebook** | [`notebook/potato_disease_mlops.ipynb`](notebook/potato_disease_mlops.ipynb) |
 | 🧠 **Model file** | [`models/potato_cnn.h5`](models/potato_cnn.h5) (Keras HDF5) |
+
+> **About the live link.** The app runs in a Docker container on a GitHub Codespaces cloud machine, so it is
+> online while the codespace is running. On first visit GitHub shows a standard *"You are about to access a
+> development port"* notice: click **Continue**. If the link is offline, the app can be started in one command
+> (section 4.3) or run anywhere with Docker (section 4.2). The video shows the deployed app working end to end.
 
 ---
 
@@ -149,20 +154,29 @@ docker compose restart lb                       # after changing the scale
 # app on http://localhost:8080
 ```
 
-### 4.3 Deploy on Render (cloud)
+### 4.3 Cloud deployment (GitHub Codespaces + Docker)
 
-1. Push this repo to GitHub.
-2. In Render: **New → Blueprint**, then select the repo. `render.yaml` creates a Docker web service with the health check on `/health`.
-3. Wait for the build (≈5–8 min, TensorFlow is large). Open `https://<service>.onrender.com`.
-4. Paste the URL at the top of this README.
+The deployed app runs on a GitHub Codespaces cloud VM (2 vCPU, 8 GB RAM), inside Docker:
 
-Notes:
-* **Instance size.** Measured memory: ~0.7 GB while serving (TensorFlow alone takes ~620 MB on import) and
-  ~1.3 GB peak while retraining. Render's 512 MB free/starter instances would run out of memory, so `render.yaml`
-  uses the **Standard** plan (2 GB). Billing is prorated, so suspend the service after grading.
-* **Persistence.** The instance disk is ephemeral: uploads and retrained versions reset when the service restarts or
-  redeploys. For persistence, attach a Render Disk as shown in `render.yaml`. The app copies the bundled model onto
-  the empty disk on first boot.
+1. On the repository page: **Code → Codespaces → Create codespace on main** (or reopen the existing one).
+2. In the terminal:
+   ```bash
+   docker build -t leafcheck .
+   docker run -d --name leafcheck -p 8000:8000 leafcheck
+   ```
+3. In the **Ports** tab, right-click port **8000 → Port Visibility → Public**. The forwarded address is the public URL.
+
+For the multi-container setup used in the load tests: `docker compose up -d --build --scale api=2`, then make port
+**8080** public.
+
+**Why not a managed host?** Memory measured for this app: ~0.7 GB while serving (TensorFlow alone takes ~620 MB on
+import) and ~1.3 GB peak while retraining. The free tiers tried (Render 512 MB; Hugging Face Spaces, whose free CPU
+quota is 0 for new accounts) cannot run it without a paid plan. `render.yaml` is kept for a paid Render deployment
+(Standard plan, 2 GB): **New → Blueprint** on Render and select this repo.
+
+**Persistence.** Uploads, retraining history and retrained models live inside the container and reset when it is
+recreated. On a persistent host, set `DB_PATH` and `MODELS_DIR` to a mounted volume; the app copies the bundled model
+onto an empty volume on first boot.
 
 ### 4.4 Configuration (environment variables)
 
@@ -219,43 +233,38 @@ macro-F1 0.975 → 0.981). An automatic run triggered by a later upload promoted
 ## 6. Flood request simulation (Locust)
 
 ```bash
-# against the cloud deployment (interactive dashboard on http://localhost:8089)
-locust -f locust/locustfile.py --host https://<service>.onrender.com
-
-# headless, e.g. against docker compose with N containers
-locust -f locust/locustfile.py --host http://localhost:8080 --headless -u 100 -r 20 -t 60s --csv locust/results/c2_u100
+pip install locust
+docker compose up -d --build --scale api=N          # N = 1, 2, 4 containers behind nginx
+docker compose restart lb
+locust -f locust/locustfile.py --host http://localhost:8080 --headless -u 100 -r 20 -t 60s --csv locust/results/docker_cN_u100
 ```
+(Without `--headless`, Locust opens its live dashboard on port 8089.)
 
-Each simulated user sends a random test-set leaf image to `/predict` (plus an occasional `/health`) about once
-per second. Each test ran 60 s with 20 and 100 concurrent users, against 1, 2 and 4 API replicas
-(each replica = 1 uvicorn process limited to 1 TensorFlow thread, i.e. roughly 1 CPU, like one container).
+Each simulated user sends a random test-set leaf photo to `/predict` (plus an occasional `/health`) about once per
+second. **100 concurrent users for 60 s**, against 1, 2 and 4 **Docker containers** behind an nginx load balancer
+(each container limited to 1 CPU and 1 GB RAM), on the Codespaces cloud VM (2 vCPU):
 
-| Replicas | Users | Requests | Failures | Avg (ms) | Median (ms) | p95 (ms) | Throughput (req/s) |
-|---:|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 20 | 1,051 | 0 | 55 | 39 | 120 | 19.2 |
-| 2 | 20 | 1,021 | 0 | 48 | 38 | 93 | 19.0 |
-| 4 | 20 | 1,048 | 0 | 45 | 37 | 79 | 19.4 |
-| 1 | 100 | 1,892 | 0 | **1,735** | 1,700 | 2,700 | **35.3** |
-| 2 | 100 | 3,643 | 0 | **425** | 400 | 850 | **67.7** |
-| 4 | 100 | 3,747 | 0 | **393** | 320 | 990 | **69.7** |
-
-![load test](docs/images/load_test.png)
+| Docker containers | Requests | Failures | Avg (ms) | Median (ms) | p95 (ms) | Throughput (req/s) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1,493 | 0 | 2,284 | 2,300 | 3,100 | 26.9 |
+| 2 | 1,962 | 0 | **1,587** | **1,400** | 3,600 | **33.3** |
+| 4 | 1,853 | 0 | 1,800 | 1,900 | 3,600 | 31.4 |
 
 **Interpretation**
-* At **20 users** one replica copes easily: ~40 ms median and no queueing, so extra replicas only trim the tail
-  (p95 120 → 79 ms).
-* At **100 users** a single replica is **saturated** at ~35 req/s. Requests queue and average latency jumps to
-  1.7 s. **Two replicas double throughput (67.7 req/s) and cut average latency 4×.**
-* Going from 2 to **4 replicas** adds almost nothing, because the test machine has only **2 vCPUs** (shared with
-  Locust itself). Scaling out only helps while there is spare CPU, so on Render you would scale instances, each
-  with its own CPU.
-* **0 failures** in every run.
+* **1 container is saturated** at ~27 req/s. With 100 users sending ~1 request/s each, requests queue up and the
+  average response time grows to 2.3 s.
+* **2 containers** serve **24 % more requests per second** and cut the average response time by **~30 %**
+  (median 2.3 s → 1.4 s).
+* **4 containers do not help further.** The VM has only **2 vCPUs**, shared by all containers *and* by Locust
+  itself. Extra containers compete for the same CPUs. Scaling out only helps when each replica gets its own
+  hardware, as on a managed platform that adds instances.
+* **0 failures** in every configuration. (A first 1-container run recorded 502 errors during its first 6 seconds
+  only, because the load test started before TensorFlow had finished loading. The test was re-run after a
+  health-check wait. This is why `/health` is used as a readiness check.)
 
-> These runs used uvicorn worker processes on a 2-vCPU machine as replicas. Docker Hub was unreachable from the
-> build machine, so containers could not be built there. To reproduce with real containers, run
-> `docker compose up -d --scale api=N` and the headless Locust command above. Raw CSVs are in `locust/results/`.
-
----
+Raw CSV results are in `locust/results/` (`docker_c*` files). An earlier run on a 2-vCPU dev machine with uvicorn
+worker processes as replicas (`w*` files) showed the same pattern at 100 users: 35 → 68 → 70 req/s for 1 → 2 → 4
+replicas.
 
 ## 7. Notebook contents
 
