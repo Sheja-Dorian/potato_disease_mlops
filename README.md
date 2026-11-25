@@ -8,14 +8,11 @@ Docker containers on a cloud machine (GitHub Codespaces) and is load-tested with
 | | |
 |---|---|
 | 🎥 **Video demo** | **[YouTube link](https://youtu.be/TVa5414aBcQ)** |
-| 🌐 **Live app** | **https://congenial-eureka-r466j6jr74g9cx5qv-8001.app.github.dev** (API docs: `/docs`). See the note below |
+| 🌐 **Live app** | **https://leafcheck-potato.streamlit.app** (hosted on Streamlit Community Cloud). Docker + FastAPI version: see section 4 |
 | 📓 **Notebook** | [`notebook/potato_disease_mlops.ipynb`](notebook/potato_disease_mlops.ipynb) |
 | 🧠 **Model file** | [`models/potato_cnn.h5`](models/potato_cnn.h5) (Keras HDF5) |
 
-> **About the live link.** The app runs in a Docker container on a GitHub Codespaces cloud machine, so it is
-> online while the codespace is running. On first visit GitHub shows a standard *"You are about to access a
-> development port"* notice: click **Continue**. If the link is offline, the app can be started in one command
-> (section 4.3) or run anywhere with Docker (section 4.2). The video shows the deployed app working end to end.
+> **About the live link.** The app is hosted free on Streamlit Community Cloud and uses the same model, preprocessing, database and retraining code (`streamlit_app.py` + `src/`). If nobody has opened it for 12 hours it sleeps: click the button to wake it and wait 1–2 minutes. The Docker + FastAPI version (sections 4.2–4.3) is the setup shown in the video and used for the load tests.
 
 ---
 
