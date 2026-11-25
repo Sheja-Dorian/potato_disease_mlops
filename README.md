@@ -7,8 +7,8 @@ Docker containers on a cloud machine (GitHub Codespaces) and is load-tested with
 
 | | |
 |---|---|
-| 🎥 **Video demo** | **[YouTube link](https://youtu.be/REPLACE_ME)** |
-| 🌐 **Live app** | **https://congenial-eureka-r466j6jr74g9cx5qv-8000.app.github.dev** (API docs: `/docs`). See the note below |
+| 🎥 **Video demo** | **[YouTube link](https://youtu.be/TVa5414aBcQ)** |
+| 🌐 **Live app** | **https://congenial-eureka-r466j6jr74g9cx5qv-8001.app.github.dev** (API docs: `/docs`). See the note below |
 | 📓 **Notebook** | [`notebook/potato_disease_mlops.ipynb`](notebook/potato_disease_mlops.ipynb) |
 | 🧠 **Model file** | [`models/potato_cnn.h5`](models/potato_cnn.h5) (Keras HDF5) |
 
